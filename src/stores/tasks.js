@@ -1,67 +1,34 @@
-
-import { computed, ref } from 'vue';
-
-import { defineStore } from 'pinia';
-
-import tasksApi from '../api/tasksApi.js';
+import { computed, ref } from 'vue'
+import { defineStore } from 'pinia'
+import tasksApi from '../api/tasksApi.js'
 
 export const useTasksStore = defineStore('tasks', () => {
-  const tasks = ref([]);
-  const loading = ref(false);
-  const error = ref(null);
+  const tasks = ref([])
+  const loading = ref(false)
+  const error = ref(null)
 
-  // Texto digitado no campo de busca
-  const filterText = ref('');
-
-  // Todas as tarefas filtradas pelo título
-  const filteredTasks = computed(() => {
-    const text = filterText.value.toLowerCase().trim();
-
-    if (!text) {
-      return tasks.value;
-    }
-
-    return tasks.value.filter((task) =>
-      task.title.toLowerCase().includes(text),
-    );
-  });
-
-  // Primeiro aplica o filtro de texto e depois separa pelo status
-  const filteredPendingTasks = computed(() =>
-    filteredTasks.value.filter((task) => !task.done),
-  );
-
-  const filteredCompletedTasks = computed(() =>
-    filteredTasks.value.filter((task) => task.done),
-  );
-
-  // Computeds originais
-  const pendingTasks = computed(() =>
-    tasks.value.filter((task) => !task.done),
-  );
-
-  const completedTasks = computed(() =>
-    tasks.value.filter((task) => task.done),
-  );
+  const pendingTasks = computed(() => tasks.value.filter((t) => !t.done))
+  const completedTasks = computed(() => tasks.value.filter((t) => t.done))
 
   async function fetchTasks() {
-    loading.value = true;
-    error.value = null;
-
+    loading.value = true
+    error.value = null
     try {
-      const response = await tasksApi.getAll();
-      tasks.value = response.data;
+      const response = await tasksApi.getAll()
+      tasks.value = response.data
     } catch (err) {
-      error.value = 'Erro ao carregar tarefas.';
-      console.error(err);
+      error.value = 'Erro ao carregar tarefas.'
+      console.error(err)
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
-   async function addTask(payload) {
-    if (!payload.title?.trim()) return;
-    error.value = null;
+  async function addTask(payload) {
+    const titleText = typeof payload === 'string' ? payload : payload?.title
+    if (!titleText || typeof titleText !== 'string' || !titleText.trim()) return
+
+    error.value = null
     try {
       const response = await tasksApi.create(payload)
       tasks.value.push(response.data)
@@ -72,47 +39,46 @@ export const useTasksStore = defineStore('tasks', () => {
   }
 
   async function toggleTask(id) {
-    const task = tasks.value.find((t) => t.id === id);
-
-    if (!task) return;
-
-    error.value = null;
-
+    const task = tasks.value.find((t) => t.id === id)
+    if (!task) return
+    error.value = null
     try {
-      const response = await tasksApi.update(id, { done: !task.done });
-
-      const index = tasks.value.findIndex((t) => t.id === id);
-
-      if (index !== -1) {
-        tasks.value[index] = response.data;
-      }
+      const response = await tasksApi.update(id, { done: !task.done })
+      const index = tasks.value.findIndex((t) => t.id === id)
+      if (index !== -1) tasks.value[index] = response.data
     } catch (err) {
-      error.value = 'Erro ao atualizar tarefa.';
-      console.error(err);
+      error.value = 'Erro ao atualizar tarefa.'
+      console.error(err)
     }
   }
 
   async function removeTask(id) {
-    error.value = null;
-
+    error.value = null
     try {
-      await tasksApi.remove(id);
-      tasks.value = tasks.value.filter((t) => t.id !== id);
+      await tasksApi.remove(id)
+      tasks.value = tasks.value.filter((t) => t.id !== id)
     } catch (err) {
-      error.value = 'Erro ao remover tarefa.';
-      console.error(err);
+      error.value = 'Erro ao remover tarefa.'
+      console.error(err)
     }
   }
 
-   async function updateTask(id, { title, img_attachment_key } = {}) {
-    console.log(title, typeof title);
-    if (title !== undefined && !title.trim()) return
+  async function updateTask(id, payload = {}) {
     error.value = null
-    const payload = {}
-    if (title !== undefined) payload.title = title.trim()
-    if (img_attachment_key != null) payload.img_attachment_key = img_attachment_key ;    
+
+    const body = {}
+
+    if (typeof payload.title === 'string' && payload.title.trim()) {
+      body.title = payload.title.trim()
+    }
+
+    const key = payload.img_attachment_key ?? payload.imgAttachmentKey
+    if (key !== undefined) {
+      body.img_attachment_key = key
+    }
+
     try {
-      const response = await tasksApi.update(id, payload)
+      const response = await tasksApi.update(id, body)
       const index = tasks.value.findIndex((t) => t.id === id)
       if (index !== -1) tasks.value[index] = response.data
     } catch (err) {
@@ -125,19 +91,12 @@ export const useTasksStore = defineStore('tasks', () => {
     tasks,
     loading,
     error,
-
-    filterText,
-    filteredTasks,
-    filteredPendingTasks,
-    filteredCompletedTasks,
-
     pendingTasks,
     completedTasks,
-
     fetchTasks,
     addTask,
     toggleTask,
     removeTask,
     updateTask,
-  };
-});
+  }
+})

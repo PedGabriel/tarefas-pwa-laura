@@ -39,6 +39,7 @@
       <p v-if="store.tasks.length === 0" class="empty-message">
         Nenhuma tarefa cadastrada. Adicione uma acima.
       </p>
+      <TaskLocationMap :location="geoLocation.location.value"></TaskLocationMap>
     </template>
 
     <InstallButton />
@@ -51,7 +52,10 @@ import TaskForm from '../components/TaskForm.vue'
 import TaskItem from '../components/TaskItem.vue'
 import InstallButton from '../components/InstallButton.vue'
 import { useTasksStore } from '../stores/tasks.js'
+import TaskLocationMap from '@/components/TaskLocationMap.vue'
+import { useGeolocation } from '@/composables/useGeolocation.js'
 
+const geoLocation = useGeolocation()
 const store = useTasksStore()
 const editingTask = ref(null)
 
@@ -60,7 +64,7 @@ onMounted(() => {
 })
 
 function handleAdd(payload) {
-  store.addTask(payload);
+  store.addTask(payload)
 }
 
 function handleUpdate(id, payload) {

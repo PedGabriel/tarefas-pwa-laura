@@ -5,6 +5,7 @@
     <router-view />
   </main>
   <NotificationPrompt />
+  <UpdatePrompt />
 </template>
 
 <script setup>
@@ -12,6 +13,7 @@ import { onMounted, onUnmounted } from 'vue'
 import AppHeader from './components/AppHeader.vue'
 import OfflineBanner from './components/OfflineBanner.vue'
 import NotificationPrompt from './components/NotificationPrompt.vue'
+import UpdatePrompt from './components/UpdatePrompt.vue'
 import { useTasksStore } from './stores/tasks'
 import { useAuthStore } from './stores/auth'
 
@@ -21,7 +23,7 @@ const authStore = useAuthStore()
 // Re-fetch automático quando o usuário clica em uma notificação e foca o app
 function onSwMessage(event) {
   if (event.data?.type === 'PUSH_NOTIFICATION_CLICKED') {
-    tasksStore.fetchTasks() // 
+    tasksStore.fetchTasks()
   }
 }
 
@@ -36,7 +38,7 @@ onMounted(async () => {
     'serviceWorker' in navigator &&
     'Notification' in window &&
     Notification.permission === 'granted' &&
-    !localStorage.getItem('push_endpoint') // 
+    !localStorage.getItem('push_endpoint')
   ) {
     navigator.serviceWorker.ready
       .then((reg) => authStore.subscribe(reg))

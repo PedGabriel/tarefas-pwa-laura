@@ -21,15 +21,13 @@
     </div>
 
     <div class="image-section">
-      <!-- Preview da imagem já salva ou capturada -->
       <img
         v-if="previewUrl || editingTask?.img_url"
-        :src="previewUrl || editingTask?.img_url"
+        :src="previewUrl || toRelativeUrl(editingTask?.img_url)"
         class="image-preview"
         alt="Imagem da tarefa"
       />
 
-      <!-- Input com capture (padrão) -->
       <label class="image-label" :class="{ disabled: uploading }">
         <span v-if="uploading" class="upload-status">Enviando...</span>
         <span v-else>Adicionar imagem</span>
@@ -43,7 +41,6 @@
         />
       </label>
 
-      <!-- Alternativa com preview ao vivo -->
       <button
         type="button"
         class="task-button-secondary"
@@ -54,14 +51,45 @@
 
       <CameraCapture v-if="showCameraCapture" @captured="handleCameraCapture" />
     </div>
+
+    <div class="location-section">
+      <button
+        type="button"
+        class="task-button-secondary"
+        :disabled="loadingLocation"
+        @click="handleGetLocation"
+      >
+        {{ loadingLocation ? "Obtendo localização..." : "Usar localização atual" }}
+      </button>
+
+      <button
+        v-if="location"
+        type="button"
+        class="task-button-cancel"
+        @click="clearLocation"
+      >
+        Remover localização
+      </button>
+
+      <p v-if="locationError" class="location-error">{{ locationError }}</p>
+
+      <p v-if="location?.label" class="location-label">{{ location.label }}</p>
+
+      <TaskLocationMap v-if="location" :location="location" />
+    </div>
   </form>
 </template>
 
 <script setup>
 import { ref, watch } from "vue";
 import tasksApi from "../api/tasksApi.js";
-
+import geocodingApi from "../api/geocodingApi.js";
+import { useGeolocation } from "../composables/useGeolocation.js";
+import { buildLocationPayload } from "../utils/location.js";
+import { toRelativeUrl } from '@/utils/url.js'
 import CameraCapture from './CameraCapture.vue'
+import TaskLocationMap from './TaskLocationMap.vue'
+
 const showCameraCapture = ref(false)
 
 function handleCameraCapture(file) {
@@ -94,16 +122,27 @@ const previewUrl = ref(null);
 const imgAttachmentKey = ref(null);
 const uploading = ref(false);
 
+const {
+  location,
+  loadingLocation,
+  locationError,
+  setLocationFromTask,
+  clearLocation,
+  setLocationLabel,
+  requestCurrentLocation,
+} = useGeolocation();
+
 watch(
   () => props.editingTask,
   (task) => {
     newTask.value = task ? task.title : "";
     if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
     previewUrl.value = null;
-    imgAttachmentKey.value = null;
+    imgAttachmentKey.value = task?.img?.attachment_key || null;    setLocationFromTask(task);
   },
+  { immediate: true },
 );
-  
+
 async function handleImageChange(event) {
   const file = event.target.files[0];
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
@@ -122,12 +161,29 @@ async function handleImageChange(event) {
   }
 }
 
+async function handleGetLocation() {
+  const captured = await requestCurrentLocation();
+  if (!captured) return;
+
+  try {
+    const address = await geocodingApi.reverse(
+      captured.latitude,
+      captured.longitude,
+    );
+    setLocationLabel(address?.label);
+  } catch {
+    locationError.value =
+      "Localização obtida, mas não foi possível identificar a rua.";
+  }
+}
+
 function handleSubmit() {
   if (!newTask.value.trim()) return;
 
   const payload = {
     title: newTask.value.trim(),
     img_attachment_key: imgAttachmentKey.value,
+    ...buildLocationPayload(location.value),
   };
 
   if (props.editingTask) {
@@ -140,6 +196,7 @@ function handleSubmit() {
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
   previewUrl.value = null;
   imgAttachmentKey.value = null;
+  clearLocation();
 }
 
 function handleCancel() {
@@ -147,6 +204,7 @@ function handleCancel() {
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
   previewUrl.value = null;
   imgAttachmentKey.value = null;
+  clearLocation();
   emit("cancel");
 }
 </script>
@@ -265,5 +323,25 @@ function handleCancel() {
   color: #999;
   margin: 0;
   flex-basis: 100%;
+}
+
+.location-section {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #ccc;
+}
+
+.location-error {
+  color: #c0392b;
+  font-size: 0.875rem;
+  margin: 8px 0 0;
+}
+
+.location-label {
+  color: #444;
+  font-size: 0.875rem;
+  margin: 8px 0 0;
 }
 </style>

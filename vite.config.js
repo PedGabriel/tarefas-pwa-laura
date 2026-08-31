@@ -55,4 +55,17 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+ proxy: {
+    '/api': {
+      target: 'http://26.206.133.108:8001',
+      changeOrigin: true,
+      rewrite: (path) => path.replace(/^\/api/, ''),
+    },
+    '/media': {
+      target: 'http://26.206.133.108:8001',
+      changeOrigin: true,
+    },
+  },
+},
 })
